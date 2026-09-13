@@ -1,0 +1,729 @@
+<!--
+  WAI — World AI Browser
+  Copyright (c) 2026 Abhi
+  All Rights Reserved.
+
+  This software and its source code are the property of the copyright
+  holder. No permission is granted to any person to copy, modify,
+  merge, publish, distribute, sublicense, host, or sell copies of this
+  software, or to create derivative works based on it, in whole or in
+  part, without the prior written consent of the copyright holder.
+
+  Viewing or running this software for personal, non-commercial
+  purposes does not grant any of the above rights.
+
+  All other rights are reserved.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WAI — World AI Browser</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0E141B; --surface:#141B24; --surface-2:#1B2430; --surface-3:#232E3D;
+    --border-solid:#2A3547; --accent:#FF6A3D; --accent-dim:#FF6A3D26;
+    --ai:#34D1BF; --ai-dim:#34D1BF22; --text:#EAEFF5; --text-muted:#8B96A8; --text-dim:#5C6579;
+    --danger:#FF5C5C; --font-display:'Space Grotesk', sans-serif; --font-mono:'IBM Plex Mono', monospace;
+  }
+  body[data-theme="light"]{
+    --bg:#F4F2ED; --surface:#FFFFFF; --surface-2:#F0EDE6; --surface-3:#E7E2D8;
+    --border-solid:#DAD4C7; --accent:#E85A2A; --accent-dim:#E85A2A1F;
+    --ai:#0C9488; --ai-dim:#0C94881A; --text:#181C22; --text-muted:#5B6472; --text-dim:#8C93A0;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{ font-family:var(--font-display); background:var(--bg); color:var(--text); overflow:hidden; -webkit-font-smoothing:antialiased; transition:background .2s, color .2s; }
+  body.reduce-motion *{ animation:none !important; transition:none !important; }
+  #app{ display:flex; flex-direction:column; height:100vh; }
+  .meridian{ height:1px; background:repeating-linear-gradient(90deg, var(--border-solid) 0 6px, transparent 6px 12px); flex:0 0 auto; }
+
+  /* Tab strip */
+  .tabstrip{ display:flex; align-items:flex-end; gap:2px; padding:8px 10px 0 10px; background:var(--bg); flex:0 0 auto; overflow-x:auto; scrollbar-width:none; }
+  .tabstrip::-webkit-scrollbar{ display:none; }
+  .tab{ display:flex; align-items:center; gap:7px; min-width:150px; max-width:210px; padding:8px 9px; background:var(--surface); border:1px solid var(--border-solid); border-bottom:none; border-radius:8px 8px 0 0; font-size:12.5px; color:var(--text-muted); cursor:pointer; position:relative; top:1px; transition:background .15s, color .15s; flex:0 0 auto; }
+  .tab.pinned{ min-width:auto; max-width:40px; justify-content:center; padding:8px; }
+  .tab.private{ border-style:dashed; }
+  .tab.active{ background:var(--surface-2); color:var(--text); }
+  .tab .favicon{ width:14px; height:14px; border-radius:3px; flex:0 0 auto; background:var(--surface-3); object-fit:cover; }
+  .tab .favicon.fallback{ background:linear-gradient(135deg, var(--ai), var(--accent)); display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:700; color:#08110E; }
+  .tab .ttl{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; }
+  .tab .pin-badge{ font-size:9px; color:var(--ai); }
+  .tab .close{ width:16px; height:16px; border-radius:4px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; color:var(--text-dim); font-size:13px; line-height:1; }
+  .tab .close:hover{ background:var(--surface-3); color:var(--text); }
+  .newtab-btn, .privtab-btn{ width:26px; height:26px; margin:0 0 6px 4px; border-radius:7px; border:1px solid var(--border-solid); background:var(--surface); color:var(--text-muted); display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:14px; flex:0 0 auto; }
+  .newtab-btn:hover, .privtab-btn:hover{ background:var(--surface-3); color:var(--text); }
+
+  /* Toolbar */
+  .toolbar{ display:flex; align-items:center; gap:7px; padding:9px 12px; background:var(--surface-2); border-bottom:1px solid var(--border-solid); flex:0 0 auto; }
+  .navbtn{ width:30px; height:30px; border-radius:8px; border:none; background:transparent; color:var(--text-muted); display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:15px; flex:0 0 auto; }
+  .navbtn:hover:not(:disabled){ background:var(--surface-3); color:var(--text); }
+  .navbtn:disabled{ opacity:.3; cursor:default; }
+
+  .engine-picker{ position:relative; flex:0 0 auto; }
+  .engine-btn{ height:34px; padding:0 8px; border-radius:10px 0 0 10px; border:1px solid var(--border-solid); border-right:none; background:var(--surface); color:var(--text-muted); font-size:11px; cursor:pointer; font-family:var(--font-mono); }
+  .engine-menu{ position:absolute; top:38px; left:0; background:var(--surface-2); border:1px solid var(--border-solid); border-radius:8px; padding:4px; z-index:30; display:none; min-width:140px; box-shadow:0 10px 30px #00000055; }
+  .engine-menu.open{ display:block; }
+  .engine-item{ padding:7px 10px; font-size:12px; border-radius:6px; cursor:pointer; display:flex; align-items:center; gap:8px; }
+  .engine-item:hover{ background:var(--surface-3); }
+  .engine-item.active{ color:var(--ai); }
+
+  .addressbar{ position:relative; flex:1; display:flex; align-items:center; gap:8px; background:var(--surface); border:1px solid var(--border-solid); border-radius:0 20px 20px 0; padding:0 14px; height:34px; font-family:var(--font-mono); font-size:12.5px; color:var(--text); }
+  .addressbar.focused{ border-color:var(--ai); box-shadow:0 0 0 3px var(--ai-dim); }
+  .addressbar .lock{ color:var(--ai); font-size:12px; }
+  .status-dot{ width:8px; height:8px; border-radius:50%; flex:0 0 auto; background:var(--text-dim); transition:background .15s, box-shadow .15s; }
+  .status-dot.ok{ background:#3ED27C; box-shadow:0 0 6px #3ED27C88; }
+  .status-dot.blocked{ background:var(--accent); box-shadow:0 0 6px var(--accent-dim); }
+  .status-dot.search{ background:var(--ai); box-shadow:0 0 6px var(--ai-dim); }
+  .status-tip{ position:absolute; top:40px; right:12px; background:var(--surface-2); border:1px solid var(--border-solid); border-radius:8px; padding:6px 10px; font-size:10.5px; color:var(--text-muted); font-family:var(--font-display); white-space:nowrap; z-index:25; pointer-events:none; opacity:0; transform:translateY(-4px); transition:opacity .12s, transform .12s; }
+  .status-tip.show{ opacity:1; transform:translateY(0); }
+  .addressbar input{ flex:1; background:transparent; border:none; outline:none; color:var(--text); font-family:var(--font-mono); font-size:12.5px; }
+  .addressbar input::placeholder{ color:var(--text-dim); }
+  .addressbar .star{ cursor:pointer; color:var(--text-dim); font-size:14px; }
+  .addressbar .star.on{ color:var(--accent); }
+
+  .zoomctl{ display:flex; align-items:center; gap:2px; background:var(--surface); border:1px solid var(--border-solid); border-radius:8px; padding:2px; flex:0 0 auto; }
+  .zoomctl button{ width:24px; height:26px; border:none; background:transparent; color:var(--text-muted); cursor:pointer; font-size:13px; border-radius:5px; }
+  .zoomctl button:hover{ background:var(--surface-3); color:var(--text); }
+  .zoomctl .zlabel{ font-size:10.5px; color:var(--text-dim); font-family:var(--font-mono); width:34px; text-align:center; }
+
+  .toolbtn{ width:32px; height:32px; border-radius:8px; border:1px solid var(--border-solid); background:var(--surface); color:var(--text-muted); display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:14px; flex:0 0 auto; position:relative; }
+  .toolbtn:hover{ background:var(--surface-3); color:var(--text); }
+  .toolbtn.ai-toggle.active{ border-color:var(--ai); color:var(--ai); background:var(--ai-dim); }
+
+  .bookmarks-bar{ display:flex; align-items:center; gap:6px; padding:6px 12px; background:var(--surface-2); border-bottom:1px solid var(--border-solid); flex:0 0 auto; overflow-x:auto; scrollbar-width:none; }
+  .bookmarks-bar::-webkit-scrollbar{ display:none; }
+  .bm-chip{ display:flex; align-items:center; gap:6px; padding:4px 10px; border-radius:14px; background:var(--surface); border:1px solid var(--border-solid); font-size:11.5px; color:var(--text-muted); cursor:pointer; white-space:nowrap; flex:0 0 auto; }
+  .bm-chip:hover{ color:var(--text); border-color:var(--ai); }
+  .bm-chip img{ width:12px; height:12px; border-radius:3px; }
+  .bm-empty{ font-size:11px; color:var(--text-dim); font-style:italic; }
+
+  .main{ flex:1; display:flex; min-height:0; position:relative; }
+  .content{ flex:1; position:relative; background:var(--bg); min-width:0; overflow:hidden; }
+  iframe.pageframe{ width:100%; height:100%; border:none; background:#fff; transform-origin:0 0; }
+
+  .blocked-card{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:14px; padding:40px; text-align:center; background:var(--bg); }
+  .blocked-card .icon{ width:56px; height:56px; border-radius:16px; background:var(--surface-2); border:1px solid var(--border-solid); display:flex; align-items:center; justify-content:center; font-size:24px; color:var(--accent); }
+  .blocked-card h3{ font-size:17px; font-weight:600; }
+  .blocked-card p{ font-size:13px; color:var(--text-muted); max-width:420px; line-height:1.6; }
+  .blocked-card .actions{ display:flex; gap:10px; margin-top:6px; }
+  .btn{ padding:9px 18px; border-radius:8px; font-size:13px; font-weight:500; border:1px solid var(--border-solid); background:var(--surface-2); color:var(--text); cursor:pointer; font-family:var(--font-display); }
+  .btn.primary{ background:var(--accent); border-color:var(--accent); color:#1A0D06; font-weight:600; }
+  .btn:hover{ filter:brightness(1.1); }
+
+  .newtabpage{ position:absolute; inset:0; overflow-y:auto; display:flex; flex-direction:column; align-items:center; padding:8vh 20px 40px; }
+  .wordmark{ display:flex; align-items:center; gap:14px; margin-bottom:6px; }
+  .orb{ width:46px; height:46px; border-radius:50%; background:conic-gradient(from 180deg, var(--ai), var(--accent), var(--ai)); box-shadow:0 0 30px var(--ai-dim); animation:spin 8s linear infinite; position:relative; }
+  .orb::after{ content:''; position:absolute; inset:6px; border-radius:50%; background:var(--bg); }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  .wordmark h1{ font-size:34px; font-weight:700; letter-spacing:.5px; }
+  .wordmark .full{ font-size:11px; color:var(--text-dim); letter-spacing:2.5px; text-transform:uppercase; margin-top:2px; }
+
+  .hero-search{ width:100%; max-width:600px; margin-top:30px; display:flex; align-items:center; gap:10px; background:var(--surface); border:1px solid var(--border-solid); border-radius:26px; padding:6px 8px 6px 20px; height:52px; }
+  .hero-search:focus-within{ border-color:var(--ai); box-shadow:0 0 0 4px var(--ai-dim); }
+  .hero-search input{ flex:1; background:transparent; border:none; outline:none; color:var(--text); font-family:var(--font-mono); font-size:14px; }
+  .hero-search input::placeholder{ color:var(--text-dim); }
+  .hero-search button{ width:38px; height:38px; border-radius:50%; border:none; cursor:pointer; background:var(--accent); color:#1A0D06; font-size:16px; display:flex; align-items:center; justify-content:center; flex:0 0 auto; }
+  .engine-hint{ margin-top:10px; font-size:10.5px; color:var(--text-dim); letter-spacing:.5px; }
+  .engine-hint b{ color:var(--ai); font-weight:600; cursor:pointer; }
+
+  .worldclock{ display:flex; gap:0; margin-top:34px; width:100%; max-width:760px; border-top:1px solid var(--border-solid); border-bottom:1px solid var(--border-solid); }
+  .wc-item{ flex:1; padding:14px 10px; text-align:center; border-right:1px solid var(--border-solid); }
+  .wc-item:last-child{ border-right:none; }
+  .wc-item .city{ font-size:10.5px; letter-spacing:1.5px; text-transform:uppercase; color:var(--text-dim); }
+  .wc-item .time{ font-family:var(--font-mono); font-size:18px; margin-top:6px; color:var(--text); }
+  .wc-item .date{ font-size:10px; color:var(--text-muted); margin-top:2px; }
+
+  .section-label{ width:100%; max-width:760px; margin-top:34px; display:flex; align-items:center; gap:10px; font-size:10.5px; letter-spacing:2px; text-transform:uppercase; color:var(--text-dim); }
+  .section-label .line{ flex:1; height:1px; background:var(--border-solid); }
+  .qgrid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(150px,1fr)); gap:10px; width:100%; max-width:760px; margin-top:14px; }
+  .qlink{ background:var(--surface); border:1px solid var(--border-solid); border-radius:12px; padding:12px 12px; cursor:pointer; display:flex; align-items:center; gap:10px; text-align:left; }
+  .qlink:hover{ border-color:var(--accent); }
+  .qlink img{ width:22px; height:22px; border-radius:6px; flex:0 0 auto; background:var(--surface-3); }
+  .qlink .qtext{ min-width:0; }
+  .qlink .qname{ font-size:12px; color:var(--text); font-weight:500; }
+  .qlink .qdesc{ font-size:10px; color:var(--text-dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+  .ai-sidebar{ width:340px; flex:0 0 auto; background:var(--surface); border-left:1px solid var(--border-solid); display:flex; flex-direction:column; min-height:0; }
+  .ai-header{ padding:14px 16px; border-bottom:1px solid var(--border-solid); display:flex; align-items:center; gap:10px; }
+  .ai-header .mini-orb{ width:22px; height:22px; border-radius:50%; background:conic-gradient(from 90deg, var(--ai), var(--accent)); }
+  .ai-header h4{ font-size:13px; font-weight:600; }
+  .ai-header .sub{ font-size:10.5px; color:var(--text-dim); }
+  .ai-header .close-ai{ margin-left:auto; cursor:pointer; color:var(--text-dim); font-size:16px; }
+  .ai-messages{ flex:1; overflow-y:auto; padding:14px 16px; display:flex; flex-direction:column; gap:14px; }
+  .ai-msg{ font-size:13px; line-height:1.55; }
+  .ai-msg.user{ color:var(--text); background:var(--surface-2); padding:9px 12px; border-radius:10px 10px 2px 10px; align-self:flex-end; max-width:88%; }
+  .ai-msg.assistant{ color:var(--text); }
+  .ai-msg.assistant .label{ font-size:10px; color:var(--ai); letter-spacing:1px; text-transform:uppercase; margin-bottom:5px; display:block; }
+  .ai-empty{ color:var(--text-dim); font-size:12.5px; line-height:1.7; }
+  .ai-empty b{ color:var(--text-muted); }
+  .ai-thinking{ display:flex; gap:4px; padding:4px 0; }
+  .ai-thinking span{ width:5px; height:5px; border-radius:50%; background:var(--ai); animation:pulse 1.2s infinite ease-in-out; }
+  .ai-thinking span:nth-child(2){ animation-delay:.2s; }
+  .ai-thinking span:nth-child(3){ animation-delay:.4s; }
+  @keyframes pulse{ 0%,80%,100%{ opacity:.2; transform:scale(.8);} 40%{ opacity:1; transform:scale(1);} }
+  .ai-input-row{ padding:12px; border-top:1px solid var(--border-solid); display:flex; gap:8px; }
+  .ai-input-row textarea{ flex:1; resize:none; background:var(--surface-2); border:1px solid var(--border-solid); border-radius:10px; padding:9px 11px; color:var(--text); font-family:var(--font-display); font-size:12.5px; outline:none; height:38px; line-height:1.4; }
+  .ai-input-row textarea:focus{ border-color:var(--ai); }
+  .ai-send{ width:38px; height:38px; border-radius:10px; border:none; background:var(--ai); color:#06201C; cursor:pointer; font-size:15px; flex:0 0 auto; }
+  .ai-send:disabled{ opacity:.4; }
+
+  .side-panel{ position:absolute; top:0; right:0; bottom:0; width:320px; background:var(--surface); border-left:1px solid var(--border-solid); z-index:20; display:flex; flex-direction:column; box-shadow:-10px 0 30px #00000055; }
+  .side-panel h4{ padding:14px 16px; border-bottom:1px solid var(--border-solid); font-size:13px; display:flex; justify-content:space-between; align-items:center;}
+  .side-panel .clear, .side-panel .sp-close{ font-size:11px; color:var(--text-dim); cursor:pointer; font-weight:400;}
+  .history-list{ flex:1; overflow-y:auto; padding:8px; }
+  .hist-item{ padding:8px 10px; border-radius:8px; cursor:pointer; display:flex; align-items:center; gap:8px; }
+  .hist-item:hover{ background:var(--surface-2); }
+  .hist-item img{ width:14px; height:14px; border-radius:3px; flex:0 0 auto; }
+  .hist-item .h-text{ min-width:0; flex:1; }
+  .hist-item .h-url{ font-family:var(--font-mono); font-size:11.5px; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .hist-item .h-time{ font-size:10px; color:var(--text-dim); margin-top:2px; }
+  .hist-empty{ padding:20px 16px; font-size:12px; color:var(--text-dim); }
+
+  .settings-body{ padding:16px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:22px; }
+  .set-group label{ display:block; font-size:10.5px; letter-spacing:1px; text-transform:uppercase; color:var(--text-dim); margin-bottom:8px; }
+  .set-row{ display:flex; align-items:center; justify-content:space-between; background:var(--surface-2); border:1px solid var(--border-solid); border-radius:10px; padding:10px 12px; margin-bottom:8px; }
+  .set-row span{ font-size:12.5px; }
+  .radio-opt{ display:flex; align-items:center; gap:8px; padding:8px 10px; border-radius:8px; cursor:pointer; font-size:12.5px; }
+  .radio-opt:hover{ background:var(--surface-2); }
+  .radio-opt .rc{ width:14px; height:14px; border-radius:50%; border:1px solid var(--border-solid); flex:0 0 auto; position:relative; }
+  .radio-opt.sel .rc{ border-color:var(--ai); }
+  .radio-opt.sel .rc::after{ content:''; position:absolute; inset:3px; border-radius:50%; background:var(--ai); }
+  .set-input{ width:100%; background:var(--surface-2); border:1px solid var(--border-solid); border-radius:8px; padding:9px 11px; color:var(--text); font-family:var(--font-mono); font-size:12px; outline:none; }
+  .set-input:focus{ border-color:var(--ai); }
+  .toggle{ width:38px; height:22px; border-radius:12px; background:var(--surface-3); position:relative; cursor:pointer; border:1px solid var(--border-solid); flex:0 0 auto; }
+  .toggle::after{ content:''; position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:50%; background:var(--text-dim); transition:.15s; }
+  .toggle.on{ background:var(--ai-dim); border-color:var(--ai); }
+  .toggle.on::after{ left:18px; background:var(--ai); }
+
+  ::selection{ background:var(--ai-dim); }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="tabstrip" id="tabstrip"></div>
+  <div class="meridian"></div>
+  <div class="toolbar">
+    <button class="navbtn" id="btnBack" title="Back">&#8592;</button>
+    <button class="navbtn" id="btnFwd" title="Forward">&#8594;</button>
+    <button class="navbtn" id="btnReload" title="Reload">&#8635;</button>
+    <button class="navbtn" id="btnHome" title="Home">&#8962;</button>
+
+    <div class="engine-picker">
+      <button class="engine-btn" id="engineBtn">DDG ▾</button>
+      <div class="engine-menu" id="engineMenu"></div>
+    </div>
+    <div class="addressbar" id="addressbar">
+      <span class="lock">&#9679;</span>
+      <input id="addrInput" placeholder="Search the world, or enter a URL" autocomplete="off" spellcheck="false"/>
+      <span class="status-dot" id="statusDot" title=""></span>
+      <span class="star" id="starBtn" title="Bookmark this page">&#9733;</span>
+      <div class="status-tip" id="statusTip"></div>
+    </div>
+
+    <div class="zoomctl">
+      <button id="zoomOut">−</button>
+      <span class="zlabel" id="zoomLabel">100%</span>
+      <button id="zoomIn">+</button>
+    </div>
+
+    <button class="toolbtn" id="btnHistory" title="History">&#128337;</button>
+    <button class="toolbtn" id="btnSettings" title="Settings">&#9881;</button>
+    <button class="toolbtn ai-toggle" id="btnAI" title="Ask WAI">✦</button>
+  </div>
+  <div class="bookmarks-bar" id="bookmarksBar"></div>
+  <div class="main">
+    <div class="content" id="content">
+      <div class="newtabpage" id="newtabpage"></div>
+      <iframe class="pageframe" id="pageframe" style="display:none;"></iframe>
+      <div class="blocked-card" id="blockedCard" style="display:none;"></div>
+    </div>
+    <div class="ai-sidebar" id="aiSidebar" style="display:none;">
+      <div class="ai-header">
+        <div class="mini-orb"></div>
+        <div><h4>Ask WAI</h4><div class="sub">AI assistant · powered by Claude</div></div>
+        <span class="close-ai" id="closeAI">&times;</span>
+      </div>
+      <div class="ai-messages" id="aiMessages">
+        <div class="ai-empty"><b>WAI can help you think, research, and navigate.</b><br><br>
+        Ask about the topic you're browsing, get a second opinion on something you read, or just think out loud. WAI works from what you tell it here — it can't see the actual page inside the frame (no site lets outside code peek at what's rendered in another site's iframe — real security boundary, on purpose).</div>
+      </div>
+      <div class="ai-input-row">
+        <textarea id="aiInput" placeholder="Ask WAI anything..."></textarea>
+        <button class="ai-send" id="aiSend">&#8593;</button>
+      </div>
+    </div>
+    <div class="side-panel" id="historyPanel" style="display:none;">
+      <h4>History <span class="clear" id="clearHistory">Clear</span></h4>
+      <div class="history-list" id="historyList"></div>
+    </div>
+    <div class="side-panel" id="settingsPanel" style="display:none;">
+      <h4>Settings <span class="sp-close" id="closeSettings">&times;</span></h4>
+      <div class="settings-body">
+        <div class="set-group">
+          <label>Appearance</label>
+          <div class="set-row"><span>Light theme</span><div class="toggle" id="themeToggle"></div></div>
+          <div class="set-row"><span>Reduce motion</span><div class="toggle" id="motionToggle"></div></div>
+        </div>
+        <div class="set-group">
+          <label>Default search engine</label>
+          <div id="engineOptions"></div>
+        </div>
+        <div class="set-group">
+          <label>Homepage</label>
+          <input class="set-input" id="homepageInput" placeholder="e.g. wikipedia.org, or leave blank for New Tab"/>
+        </div>
+        <div class="set-group">
+          <label>About</label>
+          <div style="font-size:11px; color:var(--text-dim); line-height:1.6;">
+            WAI — World AI Browser<br>
+            © 2026 Abhi. All rights reserved.<br>
+            No copying, modification, or redistribution without written permission.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  // ---------- Data ----------
+  const ENGINES = {
+    duckduckgo:{ name:'DuckDuckGo', short:'DDG', build:q=>'https://duckduckgo.com/html/?q='+encodeURIComponent(q) },
+    wikipedia:{ name:'Wikipedia', short:'WIKI', build:q=>'https://en.wikipedia.org/wiki/Special:Search?search='+encodeURIComponent(q) },
+    google:{ name:'Google', short:'GOOG', build:q=>'https://www.google.com/search?q='+encodeURIComponent(q) },
+    bing:{ name:'Bing', short:'BING', build:q=>'https://www.bing.com/search?q='+encodeURIComponent(q) },
+  };
+
+  const FRAME_BLOCKED = [
+    'google.com','youtube.com','facebook.com','instagram.com','twitter.com','x.com',
+    'amazon.com','netflix.com','linkedin.com','tiktok.com','apple.com','yahoo.com',
+    'bing.com','snapchat.com','pinterest.com','whatsapp.com','microsoft.com'
+  ];
+
+  const CATEGORIES = [
+    { label:'Reference', items:[
+      {label:'Wikipedia', url:'wikipedia.org', desc:'The free encyclopedia'},
+      {label:'MDN Web Docs', url:'developer.mozilla.org', desc:'Web platform reference'},
+      {label:'Merriam-Webster', url:'merriam-webster.com', desc:'Dictionary & thesaurus'},
+      {label:'Project Gutenberg', url:'gutenberg.org', desc:'70,000+ free ebooks'},
+    ]},
+    { label:'News & Ideas', items:[
+      {label:'Hacker News', url:'news.ycombinator.com', desc:'Tech & startup discussion'},
+      {label:'NPR Text', url:'text.npr.org', desc:'Lightweight NPR headlines'},
+      {label:'Lobsters', url:'lobste.rs', desc:'Computing-focused link board'},
+      {label:'Old Reddit', url:'old.reddit.com', desc:'Classic Reddit layout'},
+    ]},
+    { label:'Tools & Archives', items:[
+      {label:'Internet Archive', url:'archive.org', desc:'Digital library'},
+      {label:'Wayback Machine', url:'web.archive.org', desc:'Archived web pages'},
+      {label:'OpenStreetMap', url:'openstreetmap.org', desc:'Free world map'},
+      {label:'W3Schools', url:'w3schools.com', desc:'Learn to code'},
+    ]},
+    { label:'Explore', items:[
+      {label:'NASA APOD', url:'apod.nasa.gov/apod/astropix.html', desc:'Astronomy pic of the day'},
+      {label:'xkcd', url:'xkcd.com', desc:'A webcomic of romance & math'},
+      {label:'Weather.gov', url:'weather.gov', desc:'US National Weather Service'},
+      {label:'DuckDuckGo', url:'duckduckgo.com', desc:'Private search'},
+    ]},
+  ];
+
+  const WORLD_CITIES = [
+    {city:'San Francisco', tz:'America/Los_Angeles'},
+    {city:'New York', tz:'America/New_York'},
+    {city:'London', tz:'Europe/London'},
+    {city:'Mumbai', tz:'Asia/Kolkata'},
+    {city:'Tokyo', tz:'Asia/Tokyo'},
+  ];
+
+  function favicon(domainOrUrl){
+    const d = domainOf(domainOrUrl);
+    return 'https://www.google.com/s2/favicons?sz=64&domain=' + encodeURIComponent(d);
+  }
+
+  // ---------- State ----------
+  let tabs = [];
+  let activeTabId = null;
+  let bookmarks = [];
+  let history_ = [];
+  let closedStack = [];
+  let nextTabId = 1;
+  let aiHistory = [];
+  let settings = { searchEngine:'duckduckgo', homepage:'', theme:'dark', reduceMotion:false };
+
+  // ---------- Persistence ----------
+  async function loadPersisted(){
+    try{ const bm = await window.storage.get('wai:bookmarks'); bookmarks = bm ? JSON.parse(bm.value) : []; }catch(e){ bookmarks = []; }
+    try{ const hs = await window.storage.get('wai:history'); history_ = hs ? JSON.parse(hs.value) : []; }catch(e){ history_ = []; }
+    try{ const st = await window.storage.get('wai:settings'); if(st) settings = Object.assign(settings, JSON.parse(st.value)); }catch(e){}
+    applySettingsToUI();
+    renderBookmarks(); renderHistory();
+  }
+  async function saveBookmarks(){ try{ await window.storage.set('wai:bookmarks', JSON.stringify(bookmarks)); }catch(e){} }
+  async function saveHistory(){ try{ await window.storage.set('wai:history', JSON.stringify(history_.slice(0,200))); }catch(e){} }
+  async function saveSettings(){ try{ await window.storage.set('wai:settings', JSON.stringify(settings)); }catch(e){} }
+
+  function applySettingsToUI(){
+    document.body.setAttribute('data-theme', settings.theme==='light' ? 'light':'dark');
+    document.body.classList.toggle('reduce-motion', !!settings.reduceMotion);
+    document.getElementById('themeToggle').classList.toggle('on', settings.theme==='light');
+    document.getElementById('motionToggle').classList.toggle('on', !!settings.reduceMotion);
+    document.getElementById('homepageInput').value = settings.homepage || '';
+    document.getElementById('engineBtn').textContent = ENGINES[settings.searchEngine].short + ' ▾';
+    renderEngineMenu(); renderEngineOptions();
+  }
+
+  // ---------- Tabs ----------
+  function createTab(url, opts){
+    opts = opts || {};
+    const tab = { id: nextTabId++, url:url||null, title: url? url:'New Tab', stack:[], stackIdx:-1,
+      isPrivate: !!opts.isPrivate, pinned:false, zoom:100 };
+    tabs.push(tab);
+    setActive(tab.id);
+    return tab;
+  }
+  function getActive(){ return tabs.find(t=>t.id===activeTabId); }
+  function setActive(id){ activeTabId=id; renderTabs(); renderToolbar(); renderContent(); }
+  function closeTab(id){
+    const idx = tabs.findIndex(t=>t.id===id);
+    if(idx===-1) return;
+    const t = tabs[idx];
+    if(t.url && !t.isPrivate) closedStack.push({url:t.url, title:t.title});
+    tabs.splice(idx,1);
+    if(tabs.length===0){ createTab(null); return; }
+    if(activeTabId===id){ setActive(tabs[Math.max(0, idx-1)].id); } else { renderTabs(); }
+  }
+  function reopenClosed(){
+    const last = closedStack.pop();
+    if(!last) return;
+    const t = createTab(null);
+    navigate(last.url);
+  }
+  function togglePin(id){
+    const t = tabs.find(x=>x.id===id); if(!t) return;
+    t.pinned = !t.pinned;
+    tabs.sort((a,b)=> (b.pinned - a.pinned));
+    renderTabs();
+  }
+
+  // ---------- Navigation ----------
+  function looksLikeUrl(q){
+    q=q.trim();
+    if(/^[a-z]+:\/\//i.test(q)) return true;
+    if(/^[\w-]+(\.[\w-]+)+(\/\S*)?$/i.test(q) && !q.includes(' ')) return true;
+    return false;
+  }
+  function normalizeUrl(q){ q=q.trim(); if(/^[a-z]+:\/\//i.test(q)) return q; return 'https://'+q; }
+  function domainOf(url){ try{ const u=new URL(/^[a-z]+:\/\//i.test(url)?url:'https://'+url); return u.hostname.replace(/^www\./,''); }catch(e){ return url; } }
+  function isBlocked(url){ const d=domainOf(url); return FRAME_BLOCKED.some(b=>d===b||d.endsWith('.'+b)); }
+
+  function navigate(rawQuery){
+    const tab = getActive(); if(!tab) return;
+    let target, title;
+    if(looksLikeUrl(rawQuery)){ target=normalizeUrl(rawQuery); title=domainOf(target); }
+    else{ target = ENGINES[settings.searchEngine].build(rawQuery); title = rawQuery; }
+    tab.url=target; tab.title=title;
+    tab.stack = tab.stack.slice(0, tab.stackIdx+1);
+    tab.stack.push(target); tab.stackIdx = tab.stack.length-1;
+    document.getElementById('statusTip').classList.remove('show');
+
+    if(!tab.isPrivate){
+      history_.unshift({url:target, title:title, time:new Date().toISOString()});
+      saveHistory(); renderHistory();
+    }
+    renderTabs(); renderToolbar(); loadIntoFrame(tab);
+  }
+  function goBack(){ const t=getActive(); if(!t||t.stackIdx<=0) return; t.stackIdx--; t.url=t.stack[t.stackIdx]; t.title=domainOf(t.url); renderTabs(); renderToolbar(); loadIntoFrame(t); }
+  function goFwd(){ const t=getActive(); if(!t||t.stackIdx>=t.stack.length-1) return; t.stackIdx++; t.url=t.stack[t.stackIdx]; t.title=domainOf(t.url); renderTabs(); renderToolbar(); loadIntoFrame(t); }
+  function reload(){ const t=getActive(); if(!t||!t.url) return; loadIntoFrame(t); }
+  function goHomeBtn(){
+    const t=getActive(); if(!t) return;
+    if(settings.homepage){ navigate(settings.homepage); } else { goHome(t); }
+  }
+
+  function loadIntoFrame(tab){
+    const frame=document.getElementById('pageframe'), blocked=document.getElementById('blockedCard'), ntp=document.getElementById('newtabpage');
+    ntp.style.display='none';
+    if(isBlocked(tab.url)){ showBlocked(tab.url); return; }
+    blocked.style.display='none'; frame.style.display='block';
+    frame.style.transform = 'scale('+(tab.zoom/100)+')';
+    frame.style.width = (10000/tab.zoom)+'%';
+    frame.style.height = (10000/tab.zoom)+'%';
+    frame.src = tab.url;
+    updateZoomLabel();
+  }
+  function showBlocked(url){
+    const frame=document.getElementById('pageframe'), blocked=document.getElementById('blockedCard');
+    frame.style.display='none'; frame.src='about:blank'; blocked.style.display='flex';
+    blocked.innerHTML = `
+      <div class="icon">&#128274;</div>
+      <h3>${domainOf(url)} can't be shown inside WAI</h3>
+      <p>This site blocks itself from being displayed inside any other page — a security setting the site controls, not something WAI can override. It's the same restriction every browser-in-a-browser runs into.</p>
+      <div class="actions">
+        <button class="btn primary" id="openExternal">Open in a new tab &#8599;</button>
+        <button class="btn" id="askAiInstead">Ask WAI about it instead</button>
+      </div>`;
+    document.getElementById('openExternal').onclick = ()=> window.open(url,'_blank');
+    document.getElementById('askAiInstead').onclick = ()=>{ openAI(); document.getElementById('aiInput').value = `Tell me about ${domainOf(url)} — what would I typically find there?`; };
+  }
+  function goHome(tab){
+    tab.url=null; tab.title='New Tab';
+    document.getElementById('pageframe').style.display='none';
+    document.getElementById('blockedCard').style.display='none';
+    document.getElementById('newtabpage').style.display='flex';
+    renderNewTab(); renderTabs(); renderToolbar();
+  }
+
+  // zoom
+  function setZoom(delta){
+    const t=getActive(); if(!t||!t.url) return;
+    t.zoom = Math.min(150, Math.max(50, t.zoom+delta));
+    loadIntoFrame(t);
+  }
+  function updateZoomLabel(){ const t=getActive(); document.getElementById('zoomLabel').textContent = (t?t.zoom:100)+'%'; }
+
+  // ---------- Bookmarks ----------
+  function toggleBookmark(){
+    const t=getActive(); if(!t||!t.url) return;
+    const idx=bookmarks.findIndex(b=>b.url===t.url);
+    if(idx>-1) bookmarks.splice(idx,1); else bookmarks.push({url:t.url, title:t.title});
+    saveBookmarks(); renderBookmarks(); renderToolbar();
+  }
+
+  // ---------- Render ----------
+  function renderTabs(){
+    const el=document.getElementById('tabstrip'); el.innerHTML='';
+    tabs.forEach(t=>{
+      const d=document.createElement('div');
+      d.className='tab'+(t.id===activeTabId?' active':'')+(t.pinned?' pinned':'')+(t.isPrivate?' private':'');
+      const favSrc = t.url ? favicon(t.url) : '';
+      const favHtml = t.url
+        ? `<img class="favicon" src="${favSrc}" onerror="this.style.display='none'"/>`
+        : `<span class="favicon fallback">${t.isPrivate?'&#128373;':'N'}</span>`;
+      d.innerHTML = t.pinned
+        ? `${favHtml}`
+        : `${favHtml}<span class="ttl">${t.isPrivate?'&#128373; ':''}${escapeHtml(t.title||'New Tab')}</span><span class="close">&times;</span>`;
+      d.onclick=(e)=>{ if(e.target.classList.contains('close')){ closeTab(t.id); } else { setActive(t.id); } };
+      d.oncontextmenu=(e)=>{ e.preventDefault(); togglePin(t.id); };
+      d.title = t.pinned ? (t.title+' (right-click to unpin)') : 'Right-click to pin';
+      el.appendChild(d);
+    });
+    const nb=document.createElement('button'); nb.className='newtab-btn'; nb.textContent='+'; nb.title='New tab (Ctrl+T)';
+    nb.onclick=()=>createTab(null); el.appendChild(nb);
+    const pb=document.createElement('button'); pb.className='privtab-btn'; pb.innerHTML='&#128373;'; pb.title='New private tab (Ctrl+Shift+N)';
+    pb.onclick=()=>createTab(null,{isPrivate:true}); el.appendChild(pb);
+  }
+
+  function renderToolbar(){
+    const t=getActive();
+    document.getElementById('btnBack').disabled = !t||t.stackIdx<=0;
+    document.getElementById('btnFwd').disabled = !t||t.stackIdx>=t.stack.length-1;
+    document.getElementById('addrInput').value = t&&t.url ? t.url : '';
+    const starred = t&&t.url&&bookmarks.some(b=>b.url===t.url);
+    document.getElementById('starBtn').className='star'+(starred?' on':'');
+    updateZoomLabel();
+  }
+  function renderContent(){
+    const t=getActive();
+    if(!t||!t.url){ goHome(t||{}); } else { loadIntoFrame(t); document.getElementById('newtabpage').style.display='none'; }
+  }
+  function renderBookmarks(){
+    const el=document.getElementById('bookmarksBar'); el.innerHTML='';
+    if(bookmarks.length===0){ el.innerHTML='<span class="bm-empty">Star a page to pin it here</span>'; return; }
+    bookmarks.forEach(b=>{
+      const c=document.createElement('div'); c.className='bm-chip';
+      c.innerHTML=`<img src="${favicon(b.url)}" onerror="this.style.display='none'"/><span>${escapeHtml(b.title)}</span>`;
+      c.onclick=()=>navigate(b.url); el.appendChild(c);
+    });
+  }
+  function renderHistory(){
+    const el=document.getElementById('historyList');
+    if(history_.length===0){ el.innerHTML='<div class="hist-empty">No history yet — everywhere you go will show up here.</div>'; return; }
+    el.innerHTML = history_.slice(0,80).map(h=>`
+      <div class="hist-item" data-url="${escapeAttr(h.url)}">
+        <img src="${favicon(h.url)}" onerror="this.style.display='none'"/>
+        <div class="h-text"><div class="h-url">${escapeHtml(h.title||h.url)}</div><div class="h-time">${new Date(h.time).toLocaleString()}</div></div>
+      </div>`).join('');
+    el.querySelectorAll('.hist-item').forEach(it=>{ it.onclick=()=>navigate(it.getAttribute('data-url')); });
+  }
+  function renderNewTab(){
+    const el=document.getElementById('newtabpage');
+    const t = getActive();
+    el.innerHTML = `
+      <div class="wordmark"><div class="orb"></div><div><h1>WAI</h1><div class="full">World AI Browser${t&&t.isPrivate?' · Private':''}</div></div></div>
+      <div class="hero-search"><input id="ntpInput" placeholder="Search the world, or enter a URL" autocomplete="off" spellcheck="false"/><button id="ntpGo">&#8594;</button></div>
+      <div class="engine-hint">Searching with <b id="ntpEngine">${ENGINES[settings.searchEngine].name}</b> — change it from the toolbar</div>
+      <div class="worldclock" id="worldclock"></div>
+      ${CATEGORIES.map(cat=>`
+        <div class="section-label"><span>${cat.label}</span><div class="line"></div></div>
+        <div class="qgrid">${cat.items.map(q=>`
+          <div class="qlink" data-url="${escapeAttr(q.url)}">
+            <img src="${favicon(q.url)}" onerror="this.style.display='none'"/>
+            <div class="qtext"><div class="qname">${escapeHtml(q.label)}</div><div class="qdesc">${escapeHtml(q.desc)}</div></div>
+          </div>`).join('')}</div>
+      `).join('')}
+    `;
+    el.querySelectorAll('.qlink').forEach(q=> q.onclick=()=>navigate(q.getAttribute('data-url')));
+    document.getElementById('ntpGo').onclick=()=>{ const v=document.getElementById('ntpInput').value.trim(); if(v) navigate(v); };
+    document.getElementById('ntpInput').onkeydown=(e)=>{ if(e.key==='Enter'){ const v=e.target.value.trim(); if(v) navigate(v); } };
+    document.getElementById('ntpEngine').onclick=()=> document.getElementById('engineBtn').click();
+    renderWorldClock();
+  }
+  function renderWorldClock(){
+    const el=document.getElementById('worldclock'); if(!el) return;
+    el.innerHTML = WORLD_CITIES.map(c=>{
+      const now=new Date();
+      const time=now.toLocaleTimeString('en-US',{timeZone:c.tz,hour:'2-digit',minute:'2-digit'});
+      const date=now.toLocaleDateString('en-US',{timeZone:c.tz,weekday:'short',month:'short',day:'numeric'});
+      return `<div class="wc-item"><div class="city">${c.city}</div><div class="time">${time}</div><div class="date">${date}</div></div>`;
+    }).join('');
+  }
+  setInterval(renderWorldClock, 30000);
+
+  function renderEngineMenu(){
+    const el=document.getElementById('engineMenu'); el.innerHTML='';
+    Object.keys(ENGINES).forEach(key=>{
+      const d=document.createElement('div');
+      d.className='engine-item'+(settings.searchEngine===key?' active':'');
+      d.textContent = ENGINES[key].name;
+      d.onclick=()=>{ settings.searchEngine=key; saveSettings(); applySettingsToUI(); document.getElementById('engineMenu').classList.remove('open'); };
+      el.appendChild(d);
+    });
+  }
+  function renderEngineOptions(){
+    const el=document.getElementById('engineOptions'); el.innerHTML='';
+    Object.keys(ENGINES).forEach(key=>{
+      const d=document.createElement('div');
+      d.className='radio-opt'+(settings.searchEngine===key?' sel':'');
+      d.innerHTML=`<span class="rc"></span><span>${ENGINES[key].name}</span>`;
+      d.onclick=()=>{ settings.searchEngine=key; saveSettings(); applySettingsToUI(); };
+      el.appendChild(d);
+    });
+  }
+
+  function escapeHtml(s){ return String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+  function escapeAttr(s){ return String(s).replace(/"/g,'&quot;'); }
+
+  // ---------- AI ----------
+  function openAI(){ document.getElementById('aiSidebar').style.display='flex'; document.getElementById('btnAI').classList.add('active'); document.getElementById('aiInput').focus(); }
+  function closeAIfn(){ document.getElementById('aiSidebar').style.display='none'; document.getElementById('btnAI').classList.remove('active'); }
+  async function sendAI(){
+    const input=document.getElementById('aiInput'); const text=input.value.trim(); if(!text) return;
+    input.value='';
+    const msgs=document.getElementById('aiMessages');
+    const emptyState=msgs.querySelector('.ai-empty'); if(emptyState) emptyState.remove();
+    const userDiv=document.createElement('div'); userDiv.className='ai-msg user'; userDiv.textContent=text; msgs.appendChild(userDiv);
+    const thinking=document.createElement('div'); thinking.className='ai-thinking'; thinking.innerHTML='<span></span><span></span><span></span>'; msgs.appendChild(thinking);
+    msgs.scrollTop=msgs.scrollHeight;
+    aiHistory.push({role:'user', content:text});
+    document.getElementById('aiSend').disabled=true;
+    try{
+      const resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          model:'claude-sonnet-4-6', max_tokens:1000,
+          system:"You are WAI, the built-in AI assistant of the WAI (World AI Browser). Be concise, warm, and genuinely useful — like a sharp research assistant sitting in the sidebar. You do not have access to the actual contents of the page currently loaded in the browser frame (no site lets outside code read what's rendered in another site's iframe — real, deliberate security boundary). Work from what the user tells you.",
+          messages: aiHistory
+        })
+      });
+      const data = await resp.json();
+      thinking.remove();
+      let replyText='';
+      if(data && data.content){ replyText = data.content.filter(b=>b.type==='text').map(b=>b.text).join('\n'); }
+      if(!replyText) replyText="I couldn't get a response just now — try again in a moment.";
+      aiHistory.push({role:'assistant', content:replyText});
+      const aiDiv=document.createElement('div'); aiDiv.className='ai-msg assistant';
+      aiDiv.innerHTML='<span class="label">WAI</span>'+escapeHtml(replyText).replace(/\n/g,'<br>');
+      msgs.appendChild(aiDiv);
+    }catch(e){
+      thinking.remove();
+      const errDiv=document.createElement('div'); errDiv.className='ai-msg assistant';
+      errDiv.innerHTML='<span class="label">WAI</span>Something went wrong reaching the assistant. Please try again.';
+      msgs.appendChild(errDiv);
+    }
+    document.getElementById('aiSend').disabled=false; msgs.scrollTop=msgs.scrollHeight;
+  }
+
+  // ---------- Panels ----------
+  function togglePanel(id){
+    ['historyPanel','settingsPanel'].forEach(p=>{ if(p!==id) document.getElementById(p).style.display='none'; });
+    const p=document.getElementById(id);
+    p.style.display = p.style.display==='none' ? 'flex' : 'none';
+  }
+
+  // ---------- Wire up ----------
+  document.getElementById('btnBack').onclick=goBack;
+  document.getElementById('btnFwd').onclick=goFwd;
+  document.getElementById('btnReload').onclick=reload;
+  document.getElementById('btnHome').onclick=goHomeBtn;
+  document.getElementById('starBtn').onclick=toggleBookmark;
+  document.getElementById('btnHistory').onclick=()=>togglePanel('historyPanel');
+  document.getElementById('btnSettings').onclick=()=>togglePanel('settingsPanel');
+  document.getElementById('closeSettings').onclick=()=>document.getElementById('settingsPanel').style.display='none';
+  document.getElementById('clearHistory').onclick=()=>{ history_=[]; saveHistory(); renderHistory(); };
+  document.getElementById('btnAI').onclick=()=>{ const sb=document.getElementById('aiSidebar'); if(sb.style.display==='none'||!sb.style.display) openAI(); else closeAIfn(); };
+  document.getElementById('closeAI').onclick=closeAIfn;
+  document.getElementById('aiSend').onclick=sendAI;
+  document.getElementById('aiInput').addEventListener('keydown',(e)=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendAI(); } });
+
+  document.getElementById('engineBtn').onclick=()=> document.getElementById('engineMenu').classList.toggle('open');
+  document.addEventListener('click',(e)=>{ if(!e.target.closest('.engine-picker')) document.getElementById('engineMenu').classList.remove('open'); });
+
+  document.getElementById('zoomIn').onclick=()=>setZoom(10);
+  document.getElementById('zoomOut').onclick=()=>setZoom(-10);
+
+  document.getElementById('themeToggle').onclick=()=>{ settings.theme = settings.theme==='light'?'dark':'light'; saveSettings(); applySettingsToUI(); };
+  document.getElementById('motionToggle').onclick=()=>{ settings.reduceMotion = !settings.reduceMotion; saveSettings(); applySettingsToUI(); };
+  document.getElementById('homepageInput').addEventListener('change',(e)=>{ settings.homepage=e.target.value.trim(); saveSettings(); });
+
+  const addrInput=document.getElementById('addrInput'); const addressbar=document.getElementById('addressbar');
+  const statusDot=document.getElementById('statusDot'); const statusTip=document.getElementById('statusTip');
+  addrInput.addEventListener('focus',()=>{ addressbar.classList.add('focused'); updateStatus(addrInput.value); });
+  addrInput.addEventListener('blur',()=>{ addressbar.classList.remove('focused'); statusTip.classList.remove('show'); });
+  addrInput.addEventListener('keydown',(e)=>{ if(e.key==='Enter'){ const v=addrInput.value.trim(); if(v) navigate(v); addrInput.blur(); } });
+  addrInput.addEventListener('input',(e)=> updateStatus(e.target.value));
+
+  function updateStatus(raw){
+    const v = (raw||'').trim();
+    statusDot.className = 'status-dot';
+    if(!v){ statusTip.classList.remove('show'); statusTip.textContent=''; return; }
+    if(looksLikeUrl(v)){
+      const target = normalizeUrl(v);
+      if(isBlocked(target)){
+        statusDot.classList.add('blocked');
+        statusTip.textContent = domainOf(target) + ' blocks embedding — will open a fallback card';
+      } else {
+        statusDot.classList.add('ok');
+        statusTip.textContent = 'Should load directly in WAI';
+      }
+    } else {
+      statusDot.classList.add('search');
+      statusTip.textContent = 'Will search with ' + ENGINES[settings.searchEngine].name;
+    }
+    statusTip.classList.add('show');
+  }
+
+  document.addEventListener('keydown',(e)=>{
+    const mod=e.metaKey||e.ctrlKey;
+    if(mod && e.shiftKey && e.key.toLowerCase()==='n'){ e.preventDefault(); createTab(null,{isPrivate:true}); return; }
+    if(mod && e.shiftKey && e.key.toLowerCase()==='t'){ e.preventDefault(); reopenClosed(); return; }
+    if(mod && e.key.toLowerCase()==='t'){ e.preventDefault(); createTab(null); return; }
+    if(mod && e.key.toLowerCase()==='w'){ e.preventDefault(); if(activeTabId!=null) closeTab(activeTabId); return; }
+    if(mod && e.key.toLowerCase()==='l'){ e.preventDefault(); addrInput.focus(); addrInput.select(); return; }
+  });
+
+  // ---------- Init ----------
+  (async function init(){
+    await loadPersisted();
+    createTab(null);
+    renderBookmarks();
+  })();
+})();
+</script>
+</body>
+</html>
